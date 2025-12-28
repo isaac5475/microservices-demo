@@ -69,7 +69,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve products"), http.StatusInternalServerError)
 		return
 	}
-	cart, err := fe.getCart(r.Context(), sessionID(r))
+	cart, err := fe.getCart(r.Context(), getUserID(r))
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
 		return
@@ -162,7 +162,7 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	cart, err := fe.getCart(r.Context(), sessionID(r))
+	cart, err := fe.getCart(r.Context(), getUserID(r))
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
 		return
@@ -175,7 +175,7 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// ignores the error retrieving recommendations since it is not critical
-	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), []string{id})
+	recommendations, err := fe.getRecommendations(r.Context(), getUserID(r), []string{id})
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
 	}
@@ -228,7 +228,7 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := fe.insertCart(r.Context(), sessionID(r), p.GetId(), int32(payload.Quantity)); err != nil {
+	if err := fe.insertCart(r.Context(), getUserID(r), p.GetId(), int32(payload.Quantity)); err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to add to cart"), http.StatusInternalServerError)
 		return
 	}
@@ -240,7 +240,7 @@ func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Reques
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	log.Debug("emptying cart")
 
-	if err := fe.emptyCart(r.Context(), sessionID(r)); err != nil {
+	if err := fe.emptyCart(r.Context(), getUserID(r)); err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to empty cart"), http.StatusInternalServerError)
 		return
 	}
@@ -256,14 +256,14 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
 		return
 	}
-	cart, err := fe.getCart(r.Context(), sessionID(r))
+	cart, err := fe.getCart(r.Context(), getUserID(r))
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
 		return
 	}
 
 	// ignores the error retrieving recommendations since it is not critical
-	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), cartIDs(cart))
+	recommendations, err := fe.getRecommendations(r.Context(), getUserID(r), cartIDs(cart))
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
 	}
@@ -359,7 +359,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 				CreditCardExpirationMonth: int32(payload.CcMonth),
 				CreditCardExpirationYear:  int32(payload.CcYear),
 				CreditCardCvv:             int32(payload.CcCVV)},
-			UserId:       sessionID(r),
+			UserId:       getUserID(r),
 			UserCurrency: currentCurrency(r),
 			Address: &pb.Address{
 				StreetAddress: payload.StreetAddress,
@@ -375,7 +375,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	log.WithField("order", order.GetOrder().GetOrderId()).Info("order placed")
 
 	order.GetOrder().GetItems()
-	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil)
+	recommendations, _ := fe.getRecommendations(r.Context(), getUserID(r), nil)
 
 	totalPaid := *order.GetOrder().GetShippingCost()
 	for _, v := range order.GetOrder().GetItems() {
@@ -410,6 +410,62 @@ func (fe *frontendServer) assistantHandler(w http.ResponseWriter, r *http.Reques
 	if err := templates.ExecuteTemplate(w, "assistant", injectCommonTemplateData(r, map[string]interface{}{
 		"show_currency": false,
 		"currencies":    currencies,
+	})); err != nil {
+		log.Println(err)
+	}
+}
+
+func (fe *frontendServer) loginPageHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	log.Debug("serving login page")
+
+	if isAuthenticated(r) {
+		w.Header().Set("Location", baseUrl+"/")
+		w.WriteHeader(http.StatusFound)
+		return
+	}
+
+	currencies, err := fe.getCurrencies(r.Context())
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
+		return
+	}
+
+	if err := templates.ExecuteTemplate(w, "login", injectCommonTemplateData(r, map[string]interface{}{
+		"show_currency": false,
+		"currencies":    currencies,
+	})); err != nil {
+		log.Println(err)
+	}
+}
+
+func (fe *frontendServer) ordersHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	log.Debug("viewing order history")
+
+	if !isAuthenticated(r) {
+		w.Header().Set("Location", baseUrl+"/login")
+		w.WriteHeader(http.StatusFound)
+		return
+	}
+
+	userID := getUserID(r)
+	orders, err := fe.getUserOrders(r.Context(), userID)
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve orders"), http.StatusInternalServerError)
+		return
+	}
+
+	currencies, err := fe.getCurrencies(r.Context())
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
+		return
+	}
+
+	if err := templates.ExecuteTemplate(w, "orders", injectCommonTemplateData(r, map[string]interface{}{
+		"show_currency": true,
+		"currencies":    currencies,
+		"orders":        orders,
 	})); err != nil {
 		log.Println(err)
 	}
@@ -550,7 +606,7 @@ func renderHTTPError(log logrus.FieldLogger, r *http.Request, w http.ResponseWri
 
 func injectCommonTemplateData(r *http.Request, payload map[string]interface{}) map[string]interface{} {
 	data := map[string]interface{}{
-		"session_id":        sessionID(r),
+		"session_id":        getUserID(r),
 		"request_id":        r.Context().Value(ctxKeyRequestID{}),
 		"user_currency":     currentCurrency(r),
 		"platform_css":      plat.css,
@@ -561,6 +617,9 @@ func injectCommonTemplateData(r *http.Request, payload map[string]interface{}) m
 		"frontendMessage":   frontendMessage,
 		"currentYear":       time.Now().Year(),
 		"baseUrl":           baseUrl,
+		"is_authenticated":  isAuthenticated(r),
+		"username":          getUsernameFromJWT(r),
+		"user_email":        getUserEmailFromJWT(r),
 	}
 
 	for k, v := range payload {

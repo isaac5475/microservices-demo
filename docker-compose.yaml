@@ -233,6 +233,9 @@ services:
       - CHECKOUT_SERVICE_ADDR=checkoutservice:5050
       - AD_SERVICE_ADDR=adservice:9555
       - SHOPPING_ASSISTANT_SERVICE_ADDR=shoppingassistantservice:80
+      - SHOPPING_HISTORY_SERVICE_ADDR=shoppinghistoryservice:3000
+      - AUTH_SERVICE_ADDR=http://authservice:5000
+      - JWT_SECRET_KEY=your-super-secret-jwt-key-change-this-in-production-must-be-at-least-32-characters-long
       - ENABLE_PROFILER=0
     depends_on:
       - productcatalogservice
@@ -269,6 +272,32 @@ services:
       - microservices
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  authservice:
+    build:
+      context: ./src/authservice
+      dockerfile: Dockerfile
+    container_name: authservice
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_URLS=http://+:5000
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=5000
+      - DB_CONNECTION_STRING=Host=postgres;Database=microservices;Username=postgres;Password=postgres123
+      - JWT_SECRET_KEY=your-super-secret-jwt-key-change-this-in-production-must-be-at-least-32-characters-long
+      - JWT_EXPIRES_HOURS=12
+      - JWT_REFRESH_TOKEN_EXPIRES_DAYS=14
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/users"]
       interval: 10s
       timeout: 5s
       retries: 3

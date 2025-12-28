@@ -125,3 +125,13 @@ func (fe *frontendServer) getAd(ctx context.Context, ctxKeys []string) ([]*pb.Ad
 	})
 	return resp.GetAds(), errors.Wrap(err, "failed to get ads")
 }
+
+func (fe *frontendServer) getUserOrders(ctx context.Context, userID string) ([]*pb.HistoryOrder, error) {
+	resp, err := pb.NewShoppingHistoryServiceClient(fe.shoppingHistorySvcConn).GetOrdersOfUser(ctx, &pb.GetOrdersOfUserRequest{
+		UserId: userID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get user orders")
+	}
+	return resp.GetOrders(), nil
+}
