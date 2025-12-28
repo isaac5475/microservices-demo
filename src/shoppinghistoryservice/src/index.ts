@@ -41,5 +41,12 @@ const controller = new OrderController();
 server.addService(serviceDefinition, new ShoppingHistoryServiceImpl(controller))
 
 
-server.bindAsync("0.0.0.0:"+PORT, grpc.ServerCredentials.createInsecure(), () => {});
+server.bindAsync("0.0.0.0:"+PORT, grpc.ServerCredentials.createInsecure(), (error, port) => {
+  if (error) {
+    console.error(`Server error: ${error.message}`);
+    return;
+  }
+  console.log(`Shopping History Service gRPC server started on port ${port}`);
+  server.start();
+});
 

@@ -5,6 +5,13 @@ import {CreateOrderRequest, GetOrdersOfUserRequest, Order, Orders,} from "./gene
 import {Prisma} from "@prisma/client";
 import {Status} from "@grpc/grpc-js/build/src/constants.js";
 
+function dateToTimestamp(date: Date | null | undefined) {
+  const d = date || new Date();
+  const seconds = Math.floor(d.getTime() / 1000).toString();
+  const nanos = (d.getTime() % 1000) * 1000000;
+  return { seconds, nanos };
+}
+
 export class ShoppingHistoryServiceImpl {
 
   [name: string]: UntypedHandleCall | any;
@@ -18,7 +25,7 @@ export class ShoppingHistoryServiceImpl {
     });
     this.controller.createOrder(call.request.user_id, positionsPrisma).then(order => {
       callback(null, {
-        created_at: order.placedOn,
+        created_at: dateToTimestamp(order.placedOn) as any,
         order_id: order.id,
         order_items: order.orderItems.map(item => {
           return {product_id: item.productId, quantity: item.quantity}
@@ -26,7 +33,7 @@ export class ShoppingHistoryServiceImpl {
         user_id: order.userId
       });
     })
-      .catch(_ => {
+      .catch((error) => {
         callback({
           code: Status.INTERNAL,
           details: "Internal Server error"
@@ -44,7 +51,7 @@ export class ShoppingHistoryServiceImpl {
           }, null)
         }
         const payload = {
-          created_at: order.placedOn,
+          created_at: dateToTimestamp(order.placedOn) as any,
           order_id: order.id,
           order_items: order.orderItems.map(item => {
             return {product_id: item.productId, quantity: item.quantity}
@@ -53,7 +60,7 @@ export class ShoppingHistoryServiceImpl {
         };
         callback(null, payload);
       })
-      .catch(_ => {
+      .catch((error) => {
         callback({
           code: Status.INTERNAL,
           details: "Internal Server error"
@@ -68,9 +75,12 @@ export class ShoppingHistoryServiceImpl {
           orders:
             orders.map(order => {
               return {
-                created_at: order.placedOn, order_id: order.id, order_items: order.orderItems.map(item => {
+                created_at: dateToTimestamp(order.placedOn) as any,
+                order_id: order.id,
+                order_items: order.orderItems.map(item => {
                   return {product_id: item.productId, quantity: item.quantity}
-                }), user_id: order.userId
+                }),
+                user_id: order.userId
               }
             })
         });

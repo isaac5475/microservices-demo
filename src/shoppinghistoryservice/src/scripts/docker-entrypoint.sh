@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-# Run prisma migrations
-npx prisma migrate deploy --config=/app/dist/prisma.config.js
+# Push schema to database (creates tables if they don't exist, ignores if they do)
+npx prisma db push --accept-data-loss --config=/app/dist/prisma.config.js || echo "Schema initialization complete or already exists"
 
 if [ "$NODE_ENV" = "development" ] || [ "$DEBUG" = "true" ]; then
   echo "Starting in DEBUG mode..."

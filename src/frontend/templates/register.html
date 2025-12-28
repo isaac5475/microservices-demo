@@ -1,0 +1,94 @@
+{{ define "register" }}
+    {{ template "header" . }}
+
+    <main role="main" class="auth-page">
+        <div class="container auth-wrapper">
+            <div class="row justify-content-center">
+                <div class="col-lg-6">
+                    <div class="auth-card">
+                        <h2 class="auth-heading">Create your account</h2>
+                        <p class="auth-subtitle">Save your cart, place orders, and track your history across visits.</p>
+
+                        
+
+                        <form id="register-form" class="auth-form" novalidate>
+                            <div class="cymbal-form-field">
+                                <label for="register-username">Username</label>
+                                <input type="text" id="register-username" name="username" autocomplete="username" required>
+                            </div>
+                            <div class="cymbal-form-field">
+                                <label for="register-email">Email</label>
+                                <input type="email" id="register-email" name="email" autocomplete="email" required>
+                            </div>
+                            <div class="cymbal-form-field">
+                                <label for="register-password">Password</label>
+                                <input type="password" id="register-password" name="password" autocomplete="new-password" required>
+                            </div>
+
+                            <button type="submit" class="cymbal-button-primary">Create account</button>
+                            <div id="register-error" class="auth-alert" role="alert" hidden></div>
+                        </form>
+
+                        <div class="auth-cta">
+                            Already have an account? <a href="{{ $.baseUrl }}/login">Sign in</a>
+                        </div>
+                        <div class="auth-footer-note">We never share your info; this demo stores it only for auth and history.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+      (function() {
+        const form = document.getElementById('register-form');
+        const errorBox = document.getElementById('register-error');
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          errorBox.hidden = true;
+          submitBtn.disabled = true;
+          const originalText = submitBtn.textContent;
+          submitBtn.textContent = 'Creating account...';
+
+          const payload = {
+            username: form.username.value.trim(),
+            email: form.email.value.trim(),
+            password: form.password.value
+          };
+
+          if (!payload.username || !payload.email || !payload.password) {
+            errorBox.textContent = 'All fields are required.';
+            errorBox.hidden = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            return;
+          }
+
+          try {
+            const res = await fetch('{{ $.baseUrl }}/api/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+              const message = await res.text();
+              throw new Error(message || 'Registration failed');
+            }
+
+            window.location.href = '{{ $.baseUrl }}/orders';
+          } catch (err) {
+            errorBox.textContent = err.message || 'Unable to register. Please try again.';
+            errorBox.hidden = false;
+          } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+          }
+        });
+      })();
+    </script>
+
+    {{ template "footer" . }}
+{{ end }}

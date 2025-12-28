@@ -1,0 +1,1 @@
+UPDATE "Order" SET "placedOn" = CURRENT_TIMESTAMP WHERE "placedOn" IS NULL;

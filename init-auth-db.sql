@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS "Users" (
+    "Id" UUID PRIMARY KEY,
+    "PasswordHash" TEXT NOT NULL,
+    "Email" TEXT NOT NULL UNIQUE,
+    "Username" TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS "RefreshTokens" (
+    "Id" SERIAL PRIMARY KEY,
+    "Token" UUID NOT NULL UNIQUE,
+    "Expires" TIMESTAMP NOT NULL,
+    "UserId" UUID NOT NULL,
+    FOREIGN KEY ("UserId") REFERENCES "Users"("Id") ON DELETE CASCADE
+);

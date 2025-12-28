@@ -24,6 +24,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -232,7 +233,7 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to add to cart"), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("location", baseUrl + "/cart")
+	w.Header().Set("location", baseUrl+"/cart")
 	w.WriteHeader(http.StatusFound)
 }
 
@@ -244,7 +245,7 @@ func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Reques
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to empty cart"), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("location", baseUrl + "/")
+	w.Header().Set("location", baseUrl+"/")
 	w.WriteHeader(http.StatusFound)
 }
 
@@ -439,6 +440,30 @@ func (fe *frontendServer) loginPageHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+func (fe *frontendServer) registerPageHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	log.Debug("serving register page")
+
+	if isAuthenticated(r) {
+		w.Header().Set("Location", baseUrl+"/")
+		w.WriteHeader(http.StatusFound)
+		return
+	}
+
+	currencies, err := fe.getCurrencies(r.Context())
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
+		return
+	}
+
+	if err := templates.ExecuteTemplate(w, "register", injectCommonTemplateData(r, map[string]interface{}{
+		"show_currency": false,
+		"currencies":    currencies,
+	})); err != nil {
+		log.Println(err)
+	}
+}
+
 func (fe *frontendServer) ordersHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	log.Debug("viewing order history")
@@ -450,9 +475,15 @@ func (fe *frontendServer) ordersHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	userID := getUserID(r)
-	orders, err := fe.getUserOrders(r.Context(), userID)
+	historyOrders, err := fe.getUserOrders(r.Context(), userID)
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve orders"), http.StatusInternalServerError)
+		return
+	}
+
+	cart, err := fe.getCart(r.Context(), userID)
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
 		return
 	}
 
@@ -462,25 +493,112 @@ func (fe *frontendServer) ordersHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	type orderItemView struct {
+		ProductID   string
+		ProductName string
+		Picture     string
+		Quantity    int32
+		Price       string
+		LineTotal   string
+	}
+
+	type orderView struct {
+		OrderId    string
+		CreatedAt  string
+		OrderItems []orderItemView
+		Total      string
+		FirstItem  *orderItemView
+	}
+
+	// Sort orders by created_at descending (most recent first)
+	sort.Slice(historyOrders, func(i, j int) bool {
+		if historyOrders[i].GetCreatedAt() == nil || historyOrders[j].GetCreatedAt() == nil {
+			return false
+		}
+		return historyOrders[i].GetCreatedAt().AsTime().After(historyOrders[j].GetCreatedAt().AsTime())
+	})
+
+	orderViews := make([]orderView, 0, len(historyOrders))
+	for _, order := range historyOrders {
+		createdAt := "Unknown date"
+		if ts := order.GetCreatedAt(); ts != nil {
+			createdAt = ts.AsTime().Local().Format("Jan 02, 2006")
+		}
+
+		items := make([]orderItemView, 0, len(order.GetOrderItems()))
+		totalPrice := pb.Money{CurrencyCode: currentCurrency(r), Units: 0, Nanos: 0}
+		for _, item := range order.GetOrderItems() {
+			// Fetch product details
+			product, err := fe.getProduct(r.Context(), item.GetProductId())
+			if err != nil || product == nil {
+				log.Warnf("failed to get product %s: err=%v, product=nil:%v", item.GetProductId(), err, product == nil)
+				items = append(items, orderItemView{
+					ProductID:   item.GetProductId(),
+					ProductName: item.GetProductId(),
+					Picture:     "",
+					Quantity:    item.GetQuantity(),
+					Price:       renderCurrencyLogo(currentCurrency(r)) + "0.00",
+					LineTotal:   renderCurrencyLogo(currentCurrency(r)) + "0.00",
+				})
+				continue
+			}
+
+			price := renderCurrencyLogo(currentCurrency(r)) + "0.00"
+			lineTotalStr := renderCurrencyLogo(currentCurrency(r)) + "0.00"
+			if product.GetPriceUsd() != nil {
+				// Convert price to user's currency
+				convertedPrice, err := fe.convertCurrency(r.Context(), product.GetPriceUsd(), currentCurrency(r))
+				if err != nil {
+					log.Warnf("failed to convert currency for product %s: %v", item.GetProductId(), err)
+					convertedPrice = product.GetPriceUsd()
+				}
+				price = renderMoney(*convertedPrice)
+
+				// Calculate line total (price * quantity)
+				multPrice := money.MultiplySlow(*convertedPrice, uint32(item.GetQuantity()))
+				lineTotalStr = renderMoney(multPrice)
+
+				// Add to order total
+				totalPrice = money.Must(money.Sum(totalPrice, multPrice))
+			}
+
+			items = append(items, orderItemView{
+				ProductID:   item.GetProductId(),
+				ProductName: product.GetName(),
+				Picture:     product.GetPicture(),
+				Quantity:    item.GetQuantity(),
+				Price:       price,
+				LineTotal:   lineTotalStr,
+			})
+			if product.GetPicture() == "" {
+				log.Warnf("product %s (%s) has empty picture field", item.GetProductId(), product.GetName())
+			}
+		}
+
+		totalStr := renderMoney(totalPrice)
+
+		var firstItem *orderItemView
+		if len(items) > 0 {
+			firstItem = &items[0]
+		}
+
+		orderViews = append(orderViews, orderView{
+			OrderId:    order.GetOrderId(),
+			CreatedAt:  createdAt,
+			OrderItems: items,
+			Total:      totalStr,
+			FirstItem:  firstItem,
+		})
+	}
+
 	if err := templates.ExecuteTemplate(w, "orders", injectCommonTemplateData(r, map[string]interface{}{
 		"show_currency": true,
 		"currencies":    currencies,
-		"orders":        orders,
+		"orders":        orderViews,
+		"cart_size":     cartSize(cart),
 	})); err != nil {
 		log.Println(err)
 	}
-}
-
-func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) {
-	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.Debug("logging out")
-	for _, c := range r.Cookies() {
-		c.Expires = time.Now().Add(-time.Hour * 24 * 365)
-		c.MaxAge = -1
-		http.SetCookie(w, c)
-	}
-	w.Header().Set("Location", baseUrl + "/")
-	w.WriteHeader(http.StatusFound)
 }
 
 func (fe *frontendServer) getProductByID(w http.ResponseWriter, r *http.Request) {
@@ -617,6 +735,7 @@ func injectCommonTemplateData(r *http.Request, payload map[string]interface{}) m
 		"frontendMessage":   frontendMessage,
 		"currentYear":       time.Now().Year(),
 		"baseUrl":           baseUrl,
+		"staticVersion":     time.Now().Unix(),
 		"is_authenticated":  isAuthenticated(r),
 		"username":          getUsernameFromJWT(r),
 		"user_email":        getUserEmailFromJWT(r),

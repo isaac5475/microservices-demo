@@ -35,10 +35,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Google+Symbols:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-    <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/styles.css">
-    <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/cart.css">
-    <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/order.css">
-    <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/bot.css">
+    <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/styles.css?v={{ $.staticVersion }}">
+    <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/cart.css?v={{ $.staticVersion }}">
+    <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/order.css?v={{ $.staticVersion }}">
+    <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/orders.css?v={{ $.staticVersion }}">
+    <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/auth.css?v={{ $.staticVersion }}">
+    <link rel="stylesheet" type="text/css" href="{{ $.baseUrl }}/static/styles/bot.css?v={{ $.staticVersion }}">
     {{ if $.is_cymbal_brand }}
     <link rel='shortcut icon' type='image/x-icon' href='{{ $.baseUrl }}/static/favicon-cymbal.ico' />
     {{ else }}
@@ -83,17 +85,40 @@
                     {{ end }}
 
                     {{ if $.assistant_enabled }}
-                    <a href="{{ $.baseUrl }}/assistant" class="cart-link">
+                    <a href="{{ $.baseUrl }}/assistant" class="cart-link" aria-label="Assistant">
                       <img src="{{ $.baseUrl }}/static/icons/Hipster_WandIcon.svg" style="width: 22px; height: 22px;" alt="Assistant icon" class="logo" title="Assistant" />
                     </a>
                     {{ end }}
 
-                    <a href="{{ $.baseUrl }}/cart" class="cart-link">
+                    {{ if $.is_authenticated }}
+                    <a href="{{ $.baseUrl }}/orders" class="cart-link" title="Order history" aria-label="Order history">
+                        <svg class="history-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="8" y1="6" x2="21" y2="6"></line>
+                            <line x1="8" y1="12" x2="21" y2="12"></line>
+                            <line x1="8" y1="18" x2="21" y2="18"></line>
+                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                        </svg>
+                    </a>
+                    {{ end }}
+
+                    <a href="{{ $.baseUrl }}/cart" class="cart-link" aria-label="Cart">
                         <img src="{{ $.baseUrl }}/static/icons/Hipster_CartIcon.svg" alt="Cart icon" class="logo" title="Cart" />
                         {{ if $.cart_size }}
                         <span class="cart-size-circle">{{$.cart_size}}</span>
                         {{ end }}
                     </a>
+
+                    {{ if $.is_authenticated }}
+                    <a href="{{ $.baseUrl }}/logout" class="cart-link auth-link" aria-label="Logout">
+                        <span class="auth-text">Logout</span>
+                    </a>
+                    {{ else }}
+                    <a href="{{ $.baseUrl }}/login" class="cart-link auth-link" aria-label="Login">
+                        <span class="auth-text">Login</span>
+                    </a>
+                    {{ end }}
                 </div>
             </div>
         </div>

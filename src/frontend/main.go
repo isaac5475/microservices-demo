@@ -162,6 +162,7 @@ func main() {
 	r.HandleFunc(baseUrl+"/cart/checkout", svc.placeOrderHandler).Methods(http.MethodPost)
 	r.HandleFunc(baseUrl+"/assistant", svc.assistantHandler).Methods(http.MethodGet)
 	r.HandleFunc(baseUrl+"/login", svc.loginPageHandler).Methods(http.MethodGet)
+	r.HandleFunc(baseUrl+"/register", svc.registerPageHandler).Methods(http.MethodGet)
 	r.HandleFunc(baseUrl+"/orders", svc.ordersHandler).Methods(http.MethodGet)
 	r.HandleFunc(baseUrl+"/api/login", svc.loginHandler).Methods(http.MethodPost)
 	r.HandleFunc(baseUrl+"/api/register", svc.registerHandler).Methods(http.MethodPost)

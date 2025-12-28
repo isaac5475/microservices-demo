@@ -3,11 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (

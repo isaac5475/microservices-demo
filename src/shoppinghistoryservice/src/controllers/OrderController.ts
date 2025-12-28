@@ -9,6 +9,7 @@ export class OrderController implements IOrderController {
     return prisma.order.create({
       data: {
         userId,
+        placedOn: new Date(),
         orderItems: {
           createMany: {
             data: items,
@@ -34,6 +35,9 @@ export class OrderController implements IOrderController {
   }
 
   getOrdersOfUser(userId: string): Promise<OrderWithItems[]> {
-    return prisma.order.findMany({where: {userId}, include: {orderItems: true}});
+    return prisma.order.findMany({
+      where: {userId},
+      include: {orderItems: true}
+    });
   }
 }

@@ -10,6 +10,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["shopping_history"]
 }
 
 model Order {
@@ -17,11 +18,16 @@ model Order {
   userId     String
   placedOn   DateTime        @default(now())
   orderItems OrderPosition[]
+  
+  @@schema("shopping_history")
 }
 
 model OrderPosition {
-  productId String @id
+  productId String
   quantity  Int
   Order     Order? @relation(fields: [orderId], references: [id])
   orderId   String
+  
+  @@id([productId, orderId])
+  @@schema("shopping_history")
 }

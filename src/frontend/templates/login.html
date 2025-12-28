@@ -1,0 +1,89 @@
+{{ define "login" }}
+    {{ template "header" . }}
+
+    <main role="main" class="auth-page">
+        <div class="container auth-wrapper">
+            <div class="row justify-content-center">
+                <div class="col-lg-6">
+                    <div class="auth-card">
+                        <h2 class="auth-heading">Welcome back</h2>
+                        <p class="auth-subtitle">Sign in to view your cart, checkout faster, and see your order history.</p>
+
+                        
+
+                        <form id="login-form" class="auth-form" novalidate>
+                            <div class="cymbal-form-field">
+                                <label for="login-username">Username</label>
+                                <input type="text" id="login-username" name="username" autocomplete="username" required>
+                            </div>
+                            <div class="cymbal-form-field">
+                                <label for="login-password">Password</label>
+                                <input type="password" id="login-password" name="password" autocomplete="current-password" required>
+                            </div>
+
+                            <button type="submit" class="cymbal-button-primary">Sign in</button>
+                            <div id="login-error" class="auth-alert" role="alert" hidden></div>
+                        </form>
+
+                        <div class="auth-cta">
+                            No account yet? <a href="{{ $.baseUrl }}/register">Create one</a>
+                        </div>
+                        <div class="auth-footer-note">Order history is only available while signed in.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+      (function() {
+        const form = document.getElementById('login-form');
+        const errorBox = document.getElementById('login-error');
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          errorBox.hidden = true;
+          submitBtn.disabled = true;
+          const originalText = submitBtn.textContent;
+          submitBtn.textContent = 'Signing in...';
+
+          const payload = {
+            username: form.username.value.trim(),
+            password: form.password.value
+          };
+
+          if (!payload.username || !payload.password) {
+            errorBox.textContent = 'Enter your username and password.';
+            errorBox.hidden = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            return;
+          }
+
+          try {
+            const res = await fetch('{{ $.baseUrl }}/api/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+              const message = await res.text();
+              throw new Error(message || 'Login failed');
+            }
+
+            window.location.href = '{{ $.baseUrl }}/orders';
+          } catch (err) {
+            errorBox.textContent = err.message || 'Unable to sign in. Please try again.';
+            errorBox.hidden = false;
+          } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+          }
+        });
+      })();
+    </script>
+
+    {{ template "footer" . }}
+{{ end }}

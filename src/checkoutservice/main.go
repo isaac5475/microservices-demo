@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/genproto"
+	shpb "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/genproto/shoppinghistory"
 	money "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/money"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
@@ -406,15 +407,15 @@ func (cs *checkoutService) shipOrder(ctx context.Context, address *pb.Address, i
 }
 
 func (cs *checkoutService) saveOrderToHistory(ctx context.Context, userID string, order *pb.OrderResult) error {
-	var orderItems []*pb.HistoryOrderItem
+	var orderItems []*shpb.OrderItem
 	for _, item := range order.GetItems() {
-		orderItems = append(orderItems, &pb.HistoryOrderItem{
+		orderItems = append(orderItems, &shpb.OrderItem{
 			ProductId: item.GetItem().GetProductId(),
 			Quantity:  item.GetItem().GetQuantity(),
 		})
 	}
 
-	_, err := pb.NewShoppingHistoryServiceClient(cs.shoppingHistorySvcConn).CreateOrder(ctx, &pb.CreateOrderRequest{
+	_, err := shpb.NewShoppingHistoryServiceClient(cs.shoppingHistorySvcConn).CreateOrder(ctx, &shpb.CreateOrderRequest{
 		UserId:    userID,
 		Positions: orderItems,
 	})

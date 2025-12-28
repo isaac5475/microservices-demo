@@ -1,0 +1,68 @@
+{{ define "orders" }}
+    {{ template "header" . }}
+
+    <main role="main" class="orders-page">
+        <div class="orders-header">
+            <div>
+                <h2 class="orders-title">Your Order History</h2>
+                <p class="orders-description">Review your past purchases, track your order details, and view complete information about each item you've ordered including product names, quantities, individual prices, and total order amounts.</p>
+            </div>
+            {{ if gt (len .orders) 0 }}
+            <span class="orders-count" aria-label="{{ len .orders }} total orders">{{ len .orders }} orders</span>
+            {{ end }}
+        </div>
+
+        {{ if eq (len .orders) 0 }}
+        <div class="empty-state" role="region" aria-labelledby="empty-title">
+            <div class="empty-card">
+                <div class="empty-icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 6h15l-1.5 9a3 3 0 0 1-3 3H8.5a3 3 0 0 1-3-2.5L4 6h2z"/>
+                        <path d="M9 6a3 3 0 0 1 6 0"/>
+                    </svg>
+                </div>
+                <h3 id="empty-title">No Orders Yet</h3>
+                <p class="empty-sub">Orders appear here after checkout.</p>
+                <a href="{{ $.baseUrl }}/" class="btn btn-primary" aria-label="Continue shopping">Continue Shopping</a>
+            </div>
+        </div>
+        {{ else }}
+        <div class="orders-container">
+            {{ range .orders }}
+            <article class="order-card" aria-labelledby="order-{{ .OrderId }}-title">
+                <div class="order-card-header">
+                    <div class="order-meta">
+                        <div class="order-date-placed">ORDER PLACED</div>
+                        <div class="order-date" id="order-{{ .OrderId }}-title">{{ .CreatedAt }}</div>
+                    </div>
+                    <div class="order-total-amount">{{ .Total }}</div>
+                </div>
+                <div class="order-number">ORDER # {{ .OrderId }}</div>
+                <div class="order-items-grid">
+                    {{ range .OrderItems }}
+                    <div class="order-item">
+                        {{ if .Picture }}
+                        <div class="order-image-container">
+                            <img src="{{ $.baseUrl }}{{ .Picture }}" alt="{{ .ProductName }}" class="order-image" />
+                        </div>
+                        {{ end }}
+                        <div class="order-item-info">
+                            <div class="order-item-name">{{ .ProductName }}</div>
+                            {{ if .Quantity }}
+                            <div class="order-item-quantity">Qty: {{ .Quantity }}</div>
+                            {{ end }}
+                        </div>
+                        {{ if .LineTotal }}
+                        <div class="order-item-price">{{ .LineTotal }}</div>
+                        {{ end }}
+                    </div>
+                    {{ end }}
+                </div>
+            </article>
+            {{ end }}
+        </div>
+        {{ end }}
+    </main>
+
+    {{ template "footer" . }}
+{{ end }}

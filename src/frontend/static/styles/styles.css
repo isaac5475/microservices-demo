@@ -235,6 +235,23 @@ header .navbar.sub-navbar .controls a img {
   margin-bottom: 3px;
 }
 
+/* Auth link styling */
+header .navbar.sub-navbar .controls a.auth-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+header .navbar.sub-navbar .controls a.auth-link .auth-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #b4b2bb;
+}
+
+header .navbar.sub-navbar .controls a.auth-link:hover .auth-text {
+  color: #853B5C;
+}
+
 /* Footer */
 
 footer.py-5 {

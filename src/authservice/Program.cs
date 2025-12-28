@@ -61,6 +61,52 @@ builder.Services.AddApiAuthentication(Options.Create(jwtOptions));
 
 var app = builder.Build();
 
+// Ensure database is created on startup
+using (var scope = app.Services.CreateScope())
+{
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<UserDbContext>();
+    
+    logger.LogInformation("Creating database tables if they don't exist...");
+    
+    try
+    {
+        // Ensure public schema exists
+        dbContext.Database.ExecuteSqlRaw(@"
+            CREATE SCHEMA IF NOT EXISTS public;
+        ");
+        
+        // Create tables if they don't exist
+        dbContext.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS public.""Users"" (
+                ""Id"" UUID PRIMARY KEY,
+                ""Username"" TEXT UNIQUE NOT NULL,
+                ""Email"" TEXT UNIQUE NOT NULL,
+                ""PasswordHash"" TEXT NOT NULL
+            );
+        ");
+        
+        logger.LogInformation("Users table created/verified");
+        
+        dbContext.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS public.""RefreshTokens"" (
+                ""Id"" SERIAL PRIMARY KEY,
+                ""Token"" UUID UNIQUE NOT NULL,
+                ""Expires"" TIMESTAMP NOT NULL,
+                ""UserId"" UUID NOT NULL,
+                FOREIGN KEY (""UserId"") REFERENCES public.""Users""(""Id"") ON DELETE CASCADE
+            );
+        ");
+        
+        logger.LogInformation("RefreshTokens table created/verified");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error creating database tables");
+        throw;
+    }
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

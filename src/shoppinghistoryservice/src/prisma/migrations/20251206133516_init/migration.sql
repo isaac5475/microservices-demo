@@ -13,7 +13,7 @@ CREATE TABLE "OrderPosition" (
     "quantity" INTEGER NOT NULL,
     "orderId" TEXT NOT NULL,
 
-    CONSTRAINT "OrderPosition_pkey" PRIMARY KEY ("productId")
+    CONSTRAINT "OrderPosition_pkey" PRIMARY KEY ("productId", "orderId")
 );
 
 -- AddForeignKey
