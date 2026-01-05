@@ -61,11 +61,50 @@ builder.Services.AddApiAuthentication(Options.Create(jwtOptions));
 
 var app = builder.Build();
 
-// Ensure database is created on startup
+// Ensure database is created on startup with retry logic
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<UserDbContext>();
+    
+    int maxRetries = 30;
+    int retryDelayMs = 1000;
+    bool connected = false;
+    
+    for (int attempt = 1; attempt <= maxRetries; attempt++)
+    {
+        try
+        {
+            logger.LogInformation($"Attempting to connect to database (attempt {attempt}/{maxRetries})...");
+            
+            dbContext.Database.OpenConnection();
+            dbContext.Database.CloseConnection();
+            
+            connected = true;
+            logger.LogInformation("Successfully connected to database");
+            break;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning($"Database connection attempt {attempt} failed: {ex.Message}");
+            
+            if (attempt < maxRetries)
+            {
+                logger.LogInformation($"Waiting {retryDelayMs}ms before retry...");
+                Thread.Sleep(retryDelayMs);
+            }
+            else
+            {
+                logger.LogError("Max retries reached. Could not connect to database.");
+                throw;
+            }
+        }
+    }
+    
+    if (!connected)
+    {
+        throw new Exception("Failed to connect to database after multiple retries");
+    }
     
     logger.LogInformation("Creating database tables if they don't exist...");
     

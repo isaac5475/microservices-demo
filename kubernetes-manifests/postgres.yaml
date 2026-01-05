@@ -15,88 +15,101 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: shoppinghistoryservice
+  name: postgres
   labels:
-    app: shoppinghistoryservice
+    app: postgres
 spec:
   selector:
     matchLabels:
-      app: shoppinghistoryservice
+      app: postgres
   template:
     metadata:
       labels:
-        app: shoppinghistoryservice
+        app: postgres
     spec:
-      serviceAccountName: shoppinghistoryservice
+      serviceAccountName: postgres
       securityContext:
-        fsGroup: 1000
-        runAsGroup: 1000
+        fsGroup: 999
+        runAsGroup: 999
         runAsNonRoot: true
-        runAsUser: 1000
+        runAsUser: 999
       containers:
-      - name: server
+      - name: postgres
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
               - ALL
           privileged: false
-          readOnlyRootFilesystem: true
-        image: shoppinghistoryservice
+        image: postgres:15
         ports:
-        - containerPort: 50051
+        - containerPort: 5432
         env:
-        - name: PORT
-          value: "50051"
-        - name: DISABLE_PROFILER
-          value: "1"
-        - name: DATABASE_URL
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: shoppinghistoryservice-secret
-              key: database-url
+              name: postgres-secret
+              key: password
+        - name: POSTGRES_DB
+          value: "microservices"
+        - name: PGDATA
+          value: "/var/lib/postgresql/data/pgdata"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
         readinessProbe:
-          tcpSocket:
-            port: 50051
-          initialDelaySeconds: 10
-          periodSeconds: 10
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 5
+          periodSeconds: 5
         livenessProbe:
-          tcpSocket:
-            port: 50051
-          initialDelaySeconds: 30
-          periodSeconds: 15
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 15
+          periodSeconds: 10
         resources:
           requests:
             cpu: 100m
-            memory: 64Mi
-          limits:
-            cpu: 200m
             memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: postgres-storage
+        emptyDir: {}  # For production, use PersistentVolumeClaim
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: shoppinghistoryservice
+  name: postgres
   labels:
-    app: shoppinghistoryservice
+    app: postgres
 spec:
   type: ClusterIP
   selector:
-    app: shoppinghistoryservice
+    app: postgres
   ports:
-  - name: grpc
-    port: 50051
-    targetPort: 50051
+  - name: postgres
+    port: 5432
+    targetPort: 5432
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: shoppinghistoryservice
+  name: postgres
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: shoppinghistoryservice-secret
+  name: postgres-secret
 type: Opaque
 stringData:
-  database-url: "postgresql://postgres:postgres123@postgres:5432/microservices?schema=public"
+  password: postgres123

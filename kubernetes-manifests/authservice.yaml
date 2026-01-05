@@ -15,19 +15,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: shoppinghistoryservice
+  name: authservice
   labels:
-    app: shoppinghistoryservice
+    app: authservice
 spec:
   selector:
     matchLabels:
-      app: shoppinghistoryservice
+      app: authservice
   template:
     metadata:
       labels:
-        app: shoppinghistoryservice
+        app: authservice
     spec:
-      serviceAccountName: shoppinghistoryservice
+      serviceAccountName: authservice
       securityContext:
         fsGroup: 1000
         runAsGroup: 1000
@@ -42,61 +42,73 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: shoppinghistoryservice
+        image: authservice
         ports:
-        - containerPort: 50051
+        - containerPort: 5000
         env:
-        - name: PORT
-          value: "50051"
-        - name: DISABLE_PROFILER
-          value: "1"
-        - name: DATABASE_URL
+        - name: ASPNETCORE_URLS
+          value: "http://+:5000"
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: ASPNETCORE_HTTP_PORTS
+          value: "5000"
+        - name: DB_CONNECTION_STRING
           valueFrom:
             secretKeyRef:
-              name: shoppinghistoryservice-secret
-              key: database-url
+              name: authservice-secret
+              key: db-connection-string
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: authservice-secret
+              key: jwt-secret-key
+        - name: JWT_EXPIRES_HOURS
+          value: "12"
+        - name: JWT_REFRESH_TOKEN_EXPIRES_DAYS
+          value: "14"
         readinessProbe:
           tcpSocket:
-            port: 50051
+            port: 5000
           initialDelaySeconds: 10
           periodSeconds: 10
         livenessProbe:
           tcpSocket:
-            port: 50051
+            port: 5000
           initialDelaySeconds: 30
           periodSeconds: 15
         resources:
           requests:
             cpu: 100m
-            memory: 64Mi
-          limits:
-            cpu: 200m
             memory: 128Mi
+          limits:
+            cpu: 300m
+            memory: 256Mi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: shoppinghistoryservice
+  name: authservice
   labels:
-    app: shoppinghistoryservice
+    app: authservice
 spec:
   type: ClusterIP
   selector:
-    app: shoppinghistoryservice
+    app: authservice
   ports:
-  - name: grpc
-    port: 50051
-    targetPort: 50051
+  - name: http
+    port: 5000
+    targetPort: 5000
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: shoppinghistoryservice
+  name: authservice
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: shoppinghistoryservice-secret
+  name: authservice-secret
 type: Opaque
 stringData:
-  database-url: "postgresql://postgres:postgres123@postgres:5432/microservices?schema=public"
+  db-connection-string: "Host=postgres;Database=microservices;Username=postgres;Password=postgres123"
+  jwt-secret-key: "your-super-secret-jwt-key-change-this-in-production-must-be-at-least-32-characters-long"
