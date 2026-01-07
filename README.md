@@ -1,168 +1,149 @@
-<!-- <p align="center">
-<img src="/src/frontend/static/icons/Hipster_HeroLogoMaroon.svg" width="300" alt="Online Boutique" />
-</p> -->
-![Continuous Integration](https://github.com/GoogleCloudPlatform/microservices-demo/workflows/Continuous%20Integration%20-%20Main/Release/badge.svg)
+# Our Contributions to Online Boutique
 
-**Online Boutique** is a cloud-first microservices demo application.  The application is a
-web-based e-commerce app where users can browse items, add them to the cart, and purchase them.
+**Project Extension** - This document describes the authentication and shopping history features we added to the cloud-first microservices demo application. Our additions enhance the original e-commerce app by adding user authentication, persistent shopping history tracking, and database integration.
 
-Google uses this application to demonstrate how developers can modernize enterprise applications using Google Cloud products, including: [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine), [Cloud Service Mesh (CSM)](https://cloud.google.com/service-mesh), [gRPC](https://grpc.io/), [Cloud Operations](https://cloud.google.com/products/operations), [Spanner](https://cloud.google.com/spanner), [Memorystore](https://cloud.google.com/memorystore), [AlloyDB](https://cloud.google.com/alloydb), and [Gemini](https://ai.google.dev/). This application works on any Kubernetes cluster.
+Our team extended the Online Boutique application to demonstrate modern authentication patterns, database integration with PostgreSQL, and cross-service data persistence in a microservices architecture. These additions work seamlessly with the existing Kubernetes cluster deployment.
 
-If you’re using this demo, please **★Star** this repository to show your interest!
+## Architecture Enhancements
 
-**Note to Googlers:** Please fill out the form at [go/microservices-demo](http://go/microservices-demo).
+**Our contribution** includes 2 new microservices and integration with existing services, adding authentication and persistent data storage capabilities.
 
-## Architecture
+[![Enhanced Architecture with Authentication and History](/docs/img/architecture-diagram.png)](/docs/img/architecture-diagram.png)
 
-**Online Boutique** is composed of 11 microservices written in different
-languages that talk to each other over gRPC.
+Find **Protocol Buffers Descriptions** for the new services at the [`./protos` directory](/protos).
 
-[![Architecture of
-microservices](/docs/img/architecture-diagram.png)](/docs/img/architecture-diagram.png)
-
-Find **Protocol Buffers Descriptions** at the [`./protos` directory](/protos).
+### New Services Added
 
 | Service                                              | Language      | Description                                                                                                                       |
 | ---------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| [frontend](/src/frontend)                           | Go            | Exposes an HTTP server to serve the website. Does not require signup/login and generates session IDs for all users automatically. |
-| [cartservice](/src/cartservice)                     | C#            | Stores the items in the user's shopping cart in Redis and retrieves it.                                                           |
-| [productcatalogservice](/src/productcatalogservice) | Go            | Provides the list of products from a JSON file and ability to search products and get individual products.                        |
-| [currencyservice](/src/currencyservice)             | Node.js       | Converts one money amount to another currency. Uses real values fetched from European Central Bank. It's the highest QPS service. |
-| [paymentservice](/src/paymentservice)               | Node.js       | Charges the given credit card info (mock) with the given amount and returns a transaction ID.                                     |
-| [shippingservice](/src/shippingservice)             | Go            | Gives shipping cost estimates based on the shopping cart. Ships items to the given address (mock)                                 |
-| [emailservice](/src/emailservice)                   | Python        | Sends users an order confirmation email (mock).                                                                                   |
-| [checkoutservice](/src/checkoutservice)             | Go            | Retrieves user cart, prepares order and orchestrates the payment, shipping and the email notification.                            |
-| [recommendationservice](/src/recommendationservice) | Python        | Recommends other products based on what's given in the cart.                                                                      |
-| [adservice](/src/adservice)                         | Java          | Provides text ads based on given context words.                                                                                   |
-| [loadgenerator](/src/loadgenerator)                 | Python/Locust | Continuously sends requests imitating realistic user shopping flows to the frontend.                                              |
+| [authservice](/src/authservice)                     | C# (.NET 9.0) | ASP.NET Core Web API for user authentication and authorization. Implements JWT-based authentication with refresh tokens, BCrypt password hashing, and Entity Framework Core with PostgreSQL. |
+| [shoppinghistoryservice](/src/shoppinghistoryservice) | TypeScript (Node.js) | gRPC service that stores and retrieves user shopping history. Uses Prisma ORM with PostgreSQL to track all completed orders with timestamps. |
+| [postgres](/kubernetes-manifests/postgres.yaml)     | PostgreSQL 15 | Persistent database for storing user authentication data and shopping history records. Provides reliable data storage across service restarts. |
 
-## Screenshots
+### Modified Services
 
-| Home Page                                                                                                         | Checkout Screen                                                                                                    |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| [![Screenshot of store homepage](/docs/img/online-boutique-frontend-1.png)](/docs/img/online-boutique-frontend-1.png) | [![Screenshot of checkout screen](/docs/img/online-boutique-frontend-2.png)](/docs/img/online-boutique-frontend-2.png) |
+| Service                                              | Integration   | Description                                                                                                                       |
+| ---------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| [frontend](/src/frontend)                           | Go - Enhanced | Added authentication flow with login/register handlers, JWT token management, shopping history display, and HTTP REST API calls to authservice. |
+| [checkoutservice](/src/checkoutservice)             | Go - Enhanced | Integrated gRPC client for shopping history service to automatically record completed orders with user ID and order details after successful checkout. |
 
-## Quickstart (GKE)
+## Features Overview
 
-1. Ensure you have the following requirements:
-   - [Google Cloud project](https://cloud.google.com/resource-manager/docs/creating-managing-projects#creating_a_project).
-   - Shell environment with `gcloud`, `git`, and `kubectl`.
+Our additions provide:
 
-2. Clone the latest major version.
+- **User Authentication**: Secure login/logout functionality with token-based authentication
+- **Persistent Storage**: PostgreSQL database for reliable data persistence across service restarts
+- **Shopping History**: Complete order tracking with timestamps, items purchased, and order details
+- **Frontend Integration**: Seamless UI integration showing user authentication status and order history
+- **Checkout Integration**: Automatic order recording after successful purchases
 
-   ```sh
-   git clone --depth 1 --branch v0 https://github.com/GoogleCloudPlatform/microservices-demo.git
-   cd microservices-demo/
-   ```
+## Component Details
 
-   The `--depth 1` argument skips downloading git history.
+### Authentication Service (C# / ASP.NET Core 9.0)
 
-3. Set the Google Cloud project and region and ensure the Google Kubernetes Engine API is enabled.
+The authentication service is a RESTful Web API built with ASP.NET Core that provides:
+- **User Registration & Login**: REST API endpoints for account creation and authentication
+- **JWT Authentication**: Token-based authentication with access tokens and refresh tokens
+- **Password Security**: BCrypt password hashing for secure credential storage
+- **Entity Framework Core**: Database interactions with PostgreSQL using EF Core
+- **API Documentation**: Swagger/OpenAPI for API documentation and testing
 
-   ```sh
-   export PROJECT_ID=<PROJECT_ID>
-   export REGION=us-central1
-   gcloud services enable container.googleapis.com \
-     --project=${PROJECT_ID}
-   ```
+Key endpoints:
+- `POST /api/users/register` - Create new user account
+- `POST /api/users/login` - Authenticate user and return JWT tokens
+- `POST /api/users/refresh` - Refresh expired access tokens
 
-   Substitute `<PROJECT_ID>` with the ID of your Google Cloud project.
+### Shopping History Service (TypeScript / Node.js)
 
-4. Create a GKE cluster and get the credentials for it.
+The shopping history service is a gRPC microservice that provides:
+- **gRPC Server**: Efficient binary protocol communication on port 50051
+- **Prisma ORM**: Type-safe database queries and migrations
+- **Order Persistence**: Stores complete order details including items, prices, and user information
+- **Order Retrieval**: Query orders by user ID with full order history
 
-   ```sh
-   gcloud container clusters create-auto online-boutique \
-     --project=${PROJECT_ID} --region=${REGION}
-   ```
+Key RPC methods:
+- `CreateOrder` - Store a completed order in the database
+- `GetOrdersByUserId` - Retrieve order history for a specific user
 
-   Creating the cluster may take a few minutes.
+### PostgreSQL Database
 
-5. Deploy Online Boutique to the cluster.
+The PostgreSQL deployment includes:
+- Persistent volume for data storage
+- User authentication tables
+- Shopping history tables
+- Kubernetes service for internal communication
 
-   ```sh
-   kubectl apply -f ./release/kubernetes-manifests.yaml
-   ```
+## Deployment
 
-6. Wait for the pods to be ready.
+### Prerequisites
 
-   ```sh
-   kubectl get pods
-   ```
+- Kubernetes cluster (GKE, Minikube, or other)
+- kubectl configured for your cluster
+- Installed skaffold
 
-   After a few minutes, you should see the Pods in a `Running` state:
+### Deploy Our Extensions
 
-   ```
-   NAME                                     READY   STATUS    RESTARTS   AGE
-   adservice-76bdd69666-ckc5j               1/1     Running   0          2m58s
-   cartservice-66d497c6b7-dp5jr             1/1     Running   0          2m59s
-   checkoutservice-666c784bd6-4jd22         1/1     Running   0          3m1s
-   currencyservice-5d5d496984-4jmd7         1/1     Running   0          2m59s
-   emailservice-667457d9d6-75jcq            1/1     Running   0          3m2s
-   frontend-6b8d69b9fb-wjqdg                1/1     Running   0          3m1s
-   loadgenerator-665b5cd444-gwqdq           1/1     Running   0          3m
-   paymentservice-68596d6dd6-bf6bv          1/1     Running   0          3m
-   productcatalogservice-557d474574-888kr   1/1     Running   0          3m
-   recommendationservice-69c56b74d4-7z8r5   1/1     Running   0          3m1s
-   redis-cart-5f59546cdd-5jnqf              1/1     Running   0          2m58s
-   shippingservice-6ccc89f8fd-v686r         1/1     Running   0          2m58s
-   ```
-
-7. Access the web frontend in a browser using the frontend's external IP.
+1. Run the application with Skaffold:
 
    ```sh
-   kubectl get service frontend-external | awk '{print $4}'
+   skaffold run
    ```
 
-   Visit `http://EXTERNAL_IP` in a web browser to access your instance of Online Boutique.
+   This will build and deploy all services including our new additions (authservice, shoppinghistoryservice, postgres) along with the modified frontend and checkoutservice.
 
-8. Congrats! You've deployed the default Online Boutique. To deploy a different variation of Online Boutique (e.g., with Google Cloud Operations tracing, Istio, etc.), see [Deploy Online Boutique variations with Kustomize](#deploy-online-boutique-variations-with-kustomize).
-
-9. Once you are done with it, delete the GKE cluster.
+2. Access the enhanced web frontend with authentication features:
 
    ```sh
-   gcloud container clusters delete online-boutique \
-     --project=${PROJECT_ID} --region=${REGION}
+   kubectl port-forward deployment/frontend 8080:8080
    ```
 
-   Deleting the cluster may take a few minutes.
+   Visit `http://localhost:8080` to see the authentication and shopping history features.
 
-## Additional deployment options
+## Integration Points
 
-- **Terraform**: [See these instructions](/terraform) to learn how to deploy Online Boutique using [Terraform](https://www.terraform.io/intro).
-- **Istio / Cloud Service Mesh**: [See these instructions](/kustomize/components/service-mesh-istio/README.md) to deploy Online Boutique alongside an Istio-backed service mesh.
-- **Non-GKE clusters (Minikube, Kind, etc)**: See the [Development guide](/docs/development-guide.md) to learn how you can deploy Online Boutique on non-GKE clusters.
-- **AI assistant using Gemini**: [See these instructions](/kustomize/components/shopping-assistant/README.md) to deploy a Gemini-powered AI assistant that suggests products to purchase based on an image.
-- **And more**: The [`/kustomize` directory](/kustomize) contains instructions for customizing the deployment of Online Boutique with other variations.
+### Frontend Integration (Go)
 
-## Documentation
+The frontend was modified to include:
+- **New Handler Files**: `auth_handlers.go` and `jwt.go` for authentication logic
+- **REST API Calls**: HTTP requests to authservice for login/register operations
+- **Cookie Management**: Stores JWT tokens in secure HTTP-only cookies
+- **gRPC Client**: Connects to shopping history service to display user's past orders
+- **New Routes**: `/login`, `/register`, `/api/login`, `/api/register` endpoints
+- **UI Pages**: Login and registration forms, order history display
 
-- [Development](/docs/development-guide.md) to learn how to run and develop this app locally.
+Frontend communicates with:
+- **authservice** via HTTP REST API (port 5000)
+- **shoppinghistoryservice** via gRPC (port 50051)
 
-## Demos featuring Online Boutique
+### Checkout Service Integration (Go)
 
-- [alpine, distroless or scratch?](https://medium.com/google-cloud/alpine-distroless-or-scratch-caac35250e0b)
-- [Platform Engineering in action: Deploy the Online Boutique sample apps with Score and Humanitec](https://medium.com/p/d99101001e69)
-- [The new Kubernetes Gateway API with Istio and Anthos Service Mesh (ASM)](https://medium.com/p/9d64c7009cd)
-- [Use Azure Redis Cache with the Online Boutique sample on AKS](https://medium.com/p/981bd98b53f8)
-- [Sail Sharp, 8 tips to optimize and secure your .NET containers for Kubernetes](https://medium.com/p/c68ba253844a)
-- [Deploy multi-region application with Anthos and Google cloud Spanner](https://medium.com/google-cloud/a2ea3493ed0)
-- [Use Google Cloud Memorystore (Redis) with the Online Boutique sample on GKE](https://medium.com/p/82f7879a900d)
-- [Use Helm to simplify the deployment of Online Boutique, with a Service Mesh, GitOps, and more!](https://medium.com/p/246119e46d53)
-- [How to reduce microservices complexity with Apigee and Anthos Service Mesh](https://cloud.google.com/blog/products/application-modernization/api-management-and-service-mesh-go-together)
-- [gRPC health probes with Kubernetes 1.24+](https://medium.com/p/b5bd26253a4c)
-- [Use Google Cloud Spanner with the Online Boutique sample](https://medium.com/p/f7248e077339)
-- [Seamlessly encrypt traffic from any apps in your Mesh to Memorystore (redis)](https://medium.com/google-cloud/64b71969318d)
-- [Strengthen your app's security with Cloud Service Mesh and Anthos Config Management](https://cloud.google.com/service-mesh/docs/strengthen-app-security)
-- [From edge to mesh: Exposing service mesh applications through GKE Ingress](https://cloud.google.com/architecture/exposing-service-mesh-apps-through-gke-ingress)
-- [Take the first step toward SRE with Cloud Operations Sandbox](https://cloud.google.com/blog/products/operations/on-the-road-to-sre-with-cloud-operations-sandbox)
-- [Deploying the Online Boutique sample application on Cloud Service Mesh](https://cloud.google.com/service-mesh/docs/onlineboutique-install-kpt)
-- [Anthos Service Mesh Workshop: Lab Guide](https://codelabs.developers.google.com/codelabs/anthos-service-mesh-workshop)
-- [KubeCon EU 2019 - Reinventing Networking: A Deep Dive into Istio's Multicluster Gateways - Steve Dake, Independent](https://youtu.be/-t2BfT59zJA?t=982)
-- Google Cloud Next'18 SF
-  - [Day 1 Keynote](https://youtu.be/vJ9OaAqfxo4?t=2416) showing GKE On-Prem
-  - [Day 3 Keynote](https://youtu.be/JQPOPV_VH5w?t=815) showing Stackdriver
-    APM (Tracing, Code Search, Profiler, Google Cloud Build)
-  - [Introduction to Service Management with Istio](https://www.youtube.com/watch?v=wCJrdKdD6UM&feature=youtu.be&t=586)
-- [Google Cloud Next'18 London – Keynote](https://youtu.be/nIq2pkNcfEI?t=3071)
-  showing Stackdriver Incident Response Management
-- [Microservices demo showcasing Go Micro](https://github.com/go-micro/demo)
+The checkout service was enhanced to:
+- **gRPC Client Integration**: Added shopping history service client connection
+- **Order Recording**: Automatically calls `CreateOrder` RPC after successful checkout
+- **Order Details**: Sends complete order information including user ID, items, addresses, and payment info
+- **Error Handling**: Logs errors if order recording fails but doesn't block checkout completion
+
+## Database Schema
+
+### PostgreSQL Database
+
+The database stores:
+- User credentials and authentication data (accessed by authservice)
+- Order history records with full order details (accessed by shoppinghistoryservice)
+
+## Technical Stack
+
+Our additions use:
+- **C# / ASP.NET Core 9.0**: For authservice Web API implementation
+- **TypeScript / Node.js**: For shoppinghistoryservice gRPC server
+- **PostgreSQL 15**: For persistent data storage
+- **Entity Framework Core**: ORM for authservice database operations
+- **Prisma ORM**: Type-safe database client for shoppinghistoryservice
+- **gRPC**: For inter-service communication (shopping history)
+- **REST API**: For frontend-to-authservice communication
+- **JWT**: For stateless authentication tokens
+- **Protocol Buffers**: For gRPC message definitions
+- **Docker**: For containerization
+- **Kubernetes**: For container orchestration
+
+---
