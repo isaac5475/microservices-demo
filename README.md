@@ -10,8 +10,6 @@ Our team extended the Online Boutique application to demonstrate modern authenti
 
 [![Enhanced Architecture with Authentication and History](/docs/img/architecture-diagram.png)](/docs/img/architecture-diagram.png)
 
-Find **Protocol Buffers Descriptions** for the new services at the [`./protos` directory](/protos).
-
 ### New Services Added
 
 | Service                                              | Language      | Description                                                                                                                       |
